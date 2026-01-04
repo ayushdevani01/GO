@@ -1,11 +1,35 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
 )
+
+type User struct {
+	Username string `json:"username"`
+	Email    string `json:"email"`
+	Age      int    `json:"age"`
+	Password string `json:"password"`
+}
+
+type ReginsterResponse struct {
+	Id      int    `json:"id"`
+	Message string `json:"message"`
+}
+
+type LoginRequest struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+type LoginResponse struct {
+	Scuccess bool   `json:"success"`
+	Token    string `json:"token"`
+}
 
 type WikiPage struct {
 	Title string
@@ -62,10 +86,119 @@ func saveHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/view/"+title, http.StatusFound)
 }
 
+func debugHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+
+	fmt.Fprintf(w, "Method: %s\n", r.Method)
+	fmt.Fprintf(w, "URL: %s\n", r.URL.String())
+	fmt.Fprintf(w, "Path: %s\n", r.URL.Path)
+
+	fmt.Fprintf(w, "Headers:\n")
+	for key, values := range r.Header {
+		fmt.Fprintf(w, "%s: %v\n", key, values)
+	}
+
+	fmt.Fprintf(w, "Body : \n")
+	bodyBytes, err := io.ReadAll(r.Body)
+	if err != nil {
+		fmt.Fprintf(w, "Error reading body: %v\n", err)
+		return
+	}
+	fmt.Fprintf(w, "%s\n", bodyBytes)
+
+}
+
+func handleHelth(w http.ResponseWriter, r *http.Request) {
+	method := r.Method
+	if method != "GET" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, "Status : OK")
+}
+
+func searchHandler(w http.ResponseWriter, r *http.Request) {
+	queryParams := r.URL.Query()
+	term := queryParams.Get("q")
+
+	if term == "" {
+		http.Error(w, "Query parameter 'q' is required", http.StatusBadRequest)
+		return
+	}
+
+	tags := queryParams["tag"]
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	fmt.Fprintf(w, "Search Term: %s\n", term)
+	fmt.Fprintf(w, "Tags: %v\n", tags)
+
+}
+
+func registerUserHandler(w http.ResponseWriter, r *http.Request) {
+
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var newUser User
+	err := json.NewDecoder(r.Body).Decode(&newUser)
+	if err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+
+	if newUser.Username == "" || newUser.Email == "" || newUser.Password == "" {
+		http.Error(w, "Username, Email and Password are required", http.StatusBadRequest)
+		return
+	}
+
+	response := ReginsterResponse{
+		Id:      12345,
+		Message: fmt.Sprintf("User %s registered successfully!", newUser.Username),
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	json.NewEncoder(w).Encode(response)
+
+}
+
+func loginUserHandler(w http.ResponseWriter, r *http.Request) {
+
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var loginrequest LoginRequest
+	err := json.NewDecoder(r.Body).Decode(&loginrequest)
+
+	if err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+	}
+
+	response := LoginResponse{
+		Token:    "abcdef",
+		Scuccess: true,
+	}
+
+	w.Header().Set("Content-type", "application/json")
+	w.WriteHeader(http.StatusAccepted)
+	json.NewEncoder(w).Encode(response)
+
+}
+
 func main() {
+
 	http.HandleFunc("/view/", viewHandler)
 	http.HandleFunc("/edit/", editHandler)
 	http.HandleFunc("/save/", saveHandler)
+	http.HandleFunc("/debug/", debugHandler)
+	http.HandleFunc("/health/", handleHelth)
+	http.HandleFunc("/search/", searchHandler)
+	http.HandleFunc("/register/", registerUserHandler)
+	http.HandleFunc("/login/", loginUserHandler)
 
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
