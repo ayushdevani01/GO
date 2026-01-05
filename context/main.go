@@ -42,6 +42,7 @@ func slowOperation(w http.ResponseWriter, r *http.Request) {
 func main() {
 	mainhandler := http.HandlerFunc(mainHandler)
 	http.Handle("/", contextMiddleware(mainhandler))
+	http.HandleFunc("/slow", slowOperation)
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		panic(err)
 	}
