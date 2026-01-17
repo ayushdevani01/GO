@@ -35,7 +35,7 @@ func (h *UserHandler) handleGetAllUsers(w http.ResponseWriter, r *http.Request) 
 func (h *UserHandler) handleRegisterUser(w http.ResponseWriter, r *http.Request) {
 	var dto CreateUserDTO
 	if err := json.NewDecoder(r.Body).Decode(&dto); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
 
@@ -46,5 +46,6 @@ func (h *UserHandler) handleRegisterUser(w http.ResponseWriter, r *http.Request)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(response)
 }
